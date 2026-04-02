@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpendSmart — Student Expense Tracker</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- SheetJS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── TOAST CONTAINER ── -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- ── HEADER ── -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">◈</span>
+        <span class="logo-text">SpendSmart</span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-export" class="btn btn-ghost" title="Export to Excel">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export Excel
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MAIN WRAPPER ── -->
+  <main class="app-main">
+
+    <!-- ── DASHBOARD CARDS ── -->
+    <section class="dashboard-grid" id="dashboard">
+      <div class="dash-card card-total" data-delay="0">
+        <div class="card-label">Total Spent</div>
+        <div class="card-value" id="card-total">₹0.00</div>
+        <div class="card-sub" id="card-total-sub">This month</div>
+        <div class="card-glow"></div>
+      </div>
+      <div class="dash-card card-remaining" data-delay="1">
+        <div class="card-label">Budget Left</div>
+        <div class="card-value" id="card-remaining">₹–</div>
+        <div class="card-sub" id="card-remaining-sub">Monthly budget</div>
+        <div class="progress-wrap">
+          <div class="progress-bar" id="budget-progress"></div>
+        </div>
+        <div class="card-glow"></div>
+      </div>
+      <div class="dash-card card-category" data-delay="2">
+        <div class="card-label">Top Category</div>
+        <div class="card-value" id="card-top-cat">–</div>
+        <div class="card-sub" id="card-top-cat-sub">Most spending</div>
+        <div class="card-glow"></div>
+      </div>
+      <div class="dash-card card-streak" data-delay="3">
+        <div class="card-label">Entries</div>
+        <div class="card-value" id="card-entries">0</div>
+        <div class="card-sub">Total logged</div>
+        <div class="card-glow"></div>
+      </div>
+    </section>
+
+    <!-- ── MAIN CONTENT GRID ── -->
+    <div class="content-grid">
+
+      <!-- ── LEFT COLUMN: FORM + BUDGET ── -->
+      <div class="col-left">
+
+        <!-- ADD EXPENSE FORM -->
+        <section class="glass-panel form-panel">
+          <h2 class="panel-title">
+            <span class="title-icon">＋</span> Log Expense
+          </h2>
+          <form id="expense-form" novalidate>
+            <div class="form-row">
+              <div class="field">
+                <label for="amount">Amount (₹)</label>
+                <input type="number" id="amount" placeholder="0.00" min="0.01" step="0.01" required />
+              </div>
+              <div class="field">
+                <label for="date">Date</label>
+                <input type="date" id="date" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field field-full">
+                <label for="category">Category</label>
+                <div class="select-wrap">
+                  <select id="category" required>
+                    <option value="">Select category</option>
+                    <option value="Food">🍔 Food</option>
+                    <option value="Travel">🚌 Travel</option>
+                    <option value="Recharge">📱 Recharge</option>
+                    <option value="Shopping">🛍 Shopping</option>
+                    <option value="Entertainment">🎮 Entertainment</option>
+                    <option value="Others">📦 Others</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field field-full">
+                <label for="note">Note (optional)</label>
+                <input type="text" id="note" placeholder="Add a short note…" maxlength="80" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" id="submit-btn">
+                <span class="btn-text">Add Expense</span>
+                <span class="btn-shine"></span>
+              </button>
+              <button type="button" class="btn btn-ghost" id="cancel-edit-btn" style="display:none">
+                Cancel Edit
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- BUDGET SETTINGS -->
+        <section class="glass-panel budget-panel">
+          <h2 class="panel-title">
+            <span class="title-icon">◎</span> Budget Limits
+          </h2>
+          <div class="budget-inputs">
+            <div class="budget-item">
+              <label>Daily</label>
+              <div class="budget-field">
+                <span class="currency">₹</span>
+                <input type="number" id="daily-budget" placeholder="0" min="0" />
+              </div>
+              <div class="budget-status" id="daily-status"></div>
+            </div>
+            <div class="budget-item">
+              <label>Weekly</label>
+              <div class="budget-field">
+                <span class="currency">₹</span>
+                <input type="number" id="weekly-budget" placeholder="0" min="0" />
+              </div>
+              <div class="budget-status" id="weekly-status"></div>
+            </div>
+            <div class="budget-item">
+              <label>Monthly</label>
+              <div class="budget-field">
+                <span class="currency">₹</span>
+                <input type="number" id="monthly-budget" placeholder="0" min="0" />
+              </div>
+              <div class="budget-status" id="monthly-status"></div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="save-budget-btn">Save Budgets</button>
+
+          <!-- BUDGET EXCEEDED ALERT -->
+          <div class="budget-alert" id="budget-alert" style="display:none">
+            <span class="alert-icon">⚠</span>
+            <span id="alert-msg">Budget exceeded!</span>
+          </div>
+        </section>
+
+        <!-- TOTALS SUMMARY -->
+        <section class="glass-panel totals-panel">
+          <h2 class="panel-title">
+            <span class="title-icon">≡</span> Summary
+          </h2>
+          <div class="totals-list">
+            <div class="total-row">
+              <span class="total-label">Today</span>
+              <span class="total-val" id="total-daily">₹0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="total-label">This Week</span>
+              <span class="total-val" id="total-weekly">₹0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="total-label">This Month</span>
+              <span class="total-val" id="total-monthly">₹0.00</span>
+            </div>
+            <div class="total-row total-row-grand">
+              <span class="total-label">All Time</span>
+              <span class="total-val" id="total-all">₹0.00</span>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /col-left -->
+
+      <!-- ── RIGHT COLUMN: CHARTS ── -->
+      <div class="col-right">
+        <section class="glass-panel charts-panel">
+          <h2 class="panel-title">
+            <span class="title-icon">◐</span> Analytics
+          </h2>
+          <div class="charts-grid">
+            <div class="chart-wrap">
+              <div class="chart-title">Category Breakdown</div>
+              <canvas id="pie-chart"></canvas>
+            </div>
+            <div class="chart-wrap">
+              <div class="chart-title">Daily Spending (Last 7 Days)</div>
+              <canvas id="bar-chart"></canvas>
+            </div>
+          </div>
+        </section>
+      </div><!-- /col-right -->
+
+    </div><!-- /content-grid -->
+
+    <!-- ── EXPENSE TABLE SECTION ── -->
+    <section class="glass-panel table-section">
+      <div class="table-header">
+        <h2 class="panel-title">
+          <span class="title-icon">◫</span> Expense Log
+        </h2>
+        <!-- FILTERS -->
+        <div class="filters">
+          <input type="date" id="filter-date" class="filter-input" placeholder="Filter by date" title="Filter by date" />
+          <select id="filter-category" class="filter-input">
+            <option value="">All Categories</option>
+            <option value="Food">🍔 Food</option>
+            <option value="Travel">🚌 Travel</option>
+            <option value="Recharge">📱 Recharge</option>
+            <option value="Shopping">🛍 Shopping</option>
+            <option value="Entertainment">🎮 Entertainment</option>
+            <option value="Others">📦 Others</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="clear-filters-btn">Clear</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="expense-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Note</th>
+              <th>Amount</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="expense-tbody">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">◈</div>
+          <p>No expenses yet.<br/>Add one above to get started.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── DELETE CONFIRM MODAL ── -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-icon">⚠</div>
+      <h3>Delete Expense?</h3>
+      <p>This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+        <button class="btn btn-danger" id="modal-confirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Script -->
+  <script src="script.js"></script>
+</body>
+</html>
